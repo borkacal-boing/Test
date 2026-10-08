@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Kalkulačka">
+<meta name="theme-color" content="#000000">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Kalkulačka</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; margin: 0; background: #000; color: #fff;
+    font-family: -apple-system, system-ui, sans-serif; }
+  .app { height: 100%; display: flex; flex-direction: column; justify-content: flex-end;
+    padding: env(safe-area-inset-top) 12px calc(env(safe-area-inset-bottom) + 12px); }
+  #display { text-align: right; font-size: 72px; font-weight: 300; padding: 0 12px 12px;
+    white-space: nowrap; overflow: hidden; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  button { aspect-ratio: 1; border: 0; border-radius: 50%; font-size: 32px; color: #fff;
+    background: #333; font-family: inherit; }
+  button:active { filter: brightness(1.5); }
+  .fn { background: #a5a5a5; color: #000; }
+  .op { background: #ff9f0a; }
+  .op.active { background: #fff; color: #ff9f0a; }
+  .zero { grid-column: span 2; aspect-ratio: auto; border-radius: 999px; text-align: left; padding-left: 30px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div id="display">0</div>
+  <div class="grid">
+    <button class="fn" data-a="clear" id="clr">AC</button>
+    <button class="fn" data-a="sign">±</button>
+    <button class="fn" data-a="percent">%</button>
+    <button class="op" data-a="op" data-v="/">÷</button>
+    <button data-a="num" data-v="7">7</button>
+    <button data-a="num" data-v="8">8</button>
+    <button data-a="num" data-v="9">9</button>
+    <button class="op" data-a="op" data-v="*">×</button>
+    <button data-a="num" data-v="4">4</button>
+    <button data-a="num" data-v="5">5</button>
+    <button data-a="num" data-v="6">6</button>
+    <button class="op" data-a="op" data-v="-">−</button>
+    <button data-a="num" data-v="1">1</button>
+    <button data-a="num" data-v="2">2</button>
+    <button data-a="num" data-v="3">3</button>
+    <button class="op" data-a="op" data-v="+">+</button>
+    <button class="zero" data-a="num" data-v="0">0</button>
+    <button data-a="dot">,</button>
+    <button class="op" data-a="eq">=</button>
+  </div>
+</div>
+<script>
+let cur = "0", prev = null, oper = null, fresh = false;
+const disp = document.getElementById("display");
+
+function calc(a, b, o) {
+  a = parseFloat(a); b = parseFloat(b);
+  let r = o === "+" ? a + b : o === "-" ? a - b : o === "*" ? a * b : (b === 0 ? NaN : a / b);
+  return isNaN(r) ? "Chyba" : String(parseFloat(r.toPrecision(12)));
+}
+function show() {
+  let t = cur.replace(".", ",");
+  disp.textContent = t;
+  disp.style.fontSize = t.length > 9 ? "44px" : t.length > 6 ? "56px" : "72px";
+  document.getElementById("clr").textContent = (cur === "0" && !oper) ? "AC" : "C";
+  document.querySelectorAll(".op[data-a=op]").forEach(b =>
+    b.classList.toggle("active", fresh && b.dataset.v === oper));
+}
+function handle(a, v) {
+  if (cur === "Chyba" && a !== "clear") return;
+  if (a === "num") {
+    cur = (fresh || cur === "0") ? v : (cur.length < 12 ? cur + v : cur);
+    fresh = false;
+  } else if (a === "dot") {
+    if (fresh) { cur = "0."; fresh = false; }
+    else if (!cur.includes(".")) cur += ".";
+  } else if (a === "op") {
+    if (oper && !fresh) { cur = calc(prev, cur, oper); }
+    prev = cur; oper = v; fresh = true;
+  } else if (a === "eq") {
+    if (oper) { cur = calc(prev, cur, oper); oper = null; prev = null; fresh = true; }
+  } else if (a === "clear") {
+    if (cur !== "0") cur = "0"; else { prev = null; oper = null; }
+    if (a === "clear" && cur === "0" && oper === null) prev = null;
+    fresh = false;
+  } else if (a === "sign") {
+    if (cur !== "0") cur = cur.startsWith("-") ? cur.slice(1) : "-" + cur;
+  } else if (a === "percent") {
+    cur = String(parseFloat((parseFloat(cur) / 100).toPrecision(12)));
+  }
+  show();
+}
+document.querySelector(".grid").addEventListener("click", e => {
+  const b = e.target.closest("button");
+  if (b) handle(b.dataset.a, b.dataset.v);
+});
+show();
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+</script>
+</body>
+</html>
